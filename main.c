@@ -1,5 +1,7 @@
-#include "hashmap.h"
+#include "minod.h"
+#include "rawmap.h"
 
+#include <errno.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,33 +10,22 @@
 #include <unistd.h>
 
 enum {
-    IP_PROTO = 0,
     LISTEN_PORT = 7070,
-    TCP_BACKLOG = 65535,
+    TCP_BACKLOG = 2048,
 };
 
-enum cmd_type {
-    GET,
-    SET,
-};
+static int recv_all(int fd, char* buf, int size, int flags);
 
-struct cmd {
-    enum cmd_type cmd_type;
-    int key_size, value_size;
-    char buf[];
-};
-
-int main(int argc, char** argv) {
+int main(void) {
     int sockfd, clientfd;
     struct sockaddr clientaddr;
     socklen_t clientaddr_len;
     struct sockaddr_in addr;
-    char buffer[256] = { 0, };
-    Map* map;
+    map* kv_store;
 
-    map = Map_new();
+    kv_store = map_new();
 
-    sockfd = socket(PF_INET, SOCK_STREAM, IP_PROTO);
+    sockfd = socket(PF_INET, SOCK_STREAM, 0);
     if (sockfd < 0) {
         perror("socket");
         return EXIT_FAILURE;
@@ -53,43 +44,108 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
-    if ((clientfd = accept(sockfd, &clientaddr, &clientaddr_len)) < 0) {
-        perror("accept");
-        return EXIT_FAILURE;
-    }
-
     for (;;) {
+        struct cmd_header header;
         struct cmd* cmd;
-        int valuesize;
+        struct res* res;
+        int valuesize, ressize, recv_errno;
         void* value;
 
-        if (recv(clientfd, (void*)buffer, 256, 0) < 0) {
-            perror("recv");
+        res = NULL;
+
+        if ((clientfd = accept(sockfd, &clientaddr, &clientaddr_len)) < 0) {
+            perror("accept");
             return EXIT_FAILURE;
         }
-        cmd = (struct cmd*)buffer;
-        if (cmd->cmd_type == GET) {
-            printf("getting\n");
-            printf("getting key: %s\n", cmd->buf);
-            value = Map_get(map, cmd->buf, &valuesize);
-            if (value == NULL) {
-                printf("null!\n");
-                send(clientfd, "", 0, 0);
-            } else {
-                send(clientfd, value, valuesize, 0);
+
+        if (clientfd > 0 && recv_all(clientfd, (void*)&header, sizeof(header), 0) < 0) {
+            recv_errno = errno;
+            if (recv_errno == ECONNRESET) {
+                close(clientfd);
+                clientfd = 0;
+                continue;
             }
+            fprintf(stderr, "recv: %s\n", strerror(recv_errno));
+            free(res);
             close(clientfd);
-            break;
-        } else if (cmd->cmd_type == SET) {
-            printf("setting\n");
-            printf("key size: %d, value_size: %d\n", cmd->key_size, cmd->value_size);
-            printf("key: %s\n", cmd->buf);
-            Map_set(map, cmd->buf, cmd->buf + cmd->key_size + 1, cmd->value_size);
-            send(clientfd, "", 0, 0);
+            close(sockfd);
+            return EXIT_FAILURE;
         }
-        memset(buffer, 0, sizeof(buffer));
+        cmd = malloc(header.size);
+        if (recv_all(clientfd, (char*)cmd + sizeof(header), header.size - sizeof(header), 0) < 0) {
+            recv_errno = errno;
+            if (errno == ECONNRESET) {
+                close(clientfd);
+                clientfd = 0;
+                free(cmd);
+                continue;
+            }
+            fprintf(stderr, "recv: %s\n", strerror(recv_errno));
+            free(res);
+            close(clientfd);
+            close(sockfd);
+            return EXIT_FAILURE;
+        }
+        cmd->header = header;
+        if (cmd->header.type == CMD_GET) {
+            value = map_get(kv_store, cmd->buf, &valuesize);
+            if (value == NULL) {
+                ressize = sizeof(*res);
+                res = malloc(ressize);
+                res->header.code = RES_NOT_FOUND;
+                res->header.size = ressize;
+                res->header.res_size = 0;
+            } else {
+                ressize = sizeof(*res) + valuesize;
+                res = malloc(ressize);
+                res->header.code = RES_SUCCESS;
+                res->header.size = ressize;
+                res->header.res_size = valuesize;
+                memcpy(res->buf, value, valuesize);
+            }
+        } else if (cmd->header.type == CMD_SET) {
+            char* set_buffer;
+
+            set_buffer = malloc(cmd->key_size + cmd->value_size);
+            memcpy(set_buffer, cmd->buf, cmd->key_size + cmd->value_size);
+            map_set(kv_store, set_buffer, cmd->key_size, cmd->value_size);
+            ressize = sizeof(*res);
+            res = malloc(ressize);
+            res->header.code = RES_SUCCESS;
+            res->header.size = ressize;
+            res->header.res_size = 0;
+        } else {
+            ressize = sizeof(*res);
+            res = malloc(ressize);
+            res->header.code = RES_FAILURE;
+            res->header.size = ressize;
+            res->header.res_size = 0;
+        }
+        send(clientfd, (void*)res, ressize, 0);
+        free(res);
+        free(cmd);
+        close(clientfd);
+        clientfd = 0;
+        recv_errno = 0;
     }
+    close(clientfd);
+    close(sockfd);
+    map_delete(kv_store);
 
     return EXIT_SUCCESS;
+}
+
+static int recv_all(int fd, char* buf, int size, int flags) {
+    int ret;
+
+    while (size != 0 && (ret = recv(fd, (void*)buf, size, flags)) != 0) {
+        if (ret < 0) {
+            return ret;
+        }
+        size -= ret;
+        buf += ret;
+    }
+
+    return 0;
 }
 
