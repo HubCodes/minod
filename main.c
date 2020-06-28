@@ -26,11 +26,13 @@ struct cmd {
 void read_cmd(char* buf, struct cmd* cmd);
 
 int main(int argc, char** argv) {
-    int sockfd;
+    int sockfd, clientfd;
+    struct sockaddr clientaddr;
+    socklen_t clientaddr_len;
     struct sockaddr_in addr;
     char buffer[256] = { 0, };
 
-    sockfd = socket(PF_INET, SOCK_DGRAM, IP_PROTO);
+    sockfd = socket(PF_INET, SOCK_STREAM, IP_PROTO);
     if (sockfd < 0) {
         perror("socket");
         return EXIT_FAILURE;
@@ -49,11 +51,18 @@ int main(int argc, char** argv) {
         return EXIT_FAILURE;
     }
 
+    if ((clientfd = accept(sockfd, &clientaddr, &clientaddr_len)) < 0) {
+        perror("accept");
+        return EXIT_FAILURE;
+    }
+
     for (;;) {
-        if (recv(sockfd, (void*)buffer, 256, 0) < 0) {
+        if (recv(clientfd, (void*)buffer, 256, 0) < 0) {
             perror("recv");
             return EXIT_FAILURE;
         }
+        printf("%s\n", buffer);
+        send(sockfd, (void*)buffer, 256, 0);
     }
 
     return EXIT_SUCCESS;
