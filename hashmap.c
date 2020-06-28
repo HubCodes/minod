@@ -49,7 +49,7 @@ static void Map_rehash(Map* self)
 		MapEntry* prev = NULL;
 		while (entry)
 		{
-			Map_set(self, entry->key, entry->value);
+			Map_set(self, entry->key, entry->value, entry->valuesize);
 			prev = entry;
 			entry = entry->next;
 			free(prev);
@@ -58,7 +58,7 @@ static void Map_rehash(Map* self)
 	free(old_bucket);
 }
 
-void Map_set(Map* self, char* key, void* value)
+void Map_set(Map* self, char* key, void* value, int valuesize)
 {
 	Map_rehash(self);
 	unsigned int key_index = string_hash(key) % self->size;
@@ -67,6 +67,7 @@ void Map_set(Map* self, char* key, void* value)
 	MapEntry* prev_entry = NULL;
 	new_entry->key = key;
 	new_entry->value = value;
+    new_entry->valuesize = valuesize;
 	new_entry->next = NULL;
 	if (!table_entry)
 	{
@@ -97,15 +98,17 @@ void Map_set(Map* self, char* key, void* value)
 	self->entries++;
 }
 
-void* Map_get(Map* self, char* key)
+void* Map_get(Map* self, char* key, int* valuesize)
 {
 	unsigned int key_index = string_hash(key) % self->size;
 	MapEntry* table_entry = self->bucket[key_index];
 	while (table_entry)
 	{
 		int is_same_key = strcmp(key, table_entry->key) == 0;
-		if (is_same_key)
+		if (is_same_key) {
+            *valuesize = table_entry->valuesize;
 			return table_entry->value;
+        }
 		table_entry = table_entry->next;
 	}
 	return NULL;
