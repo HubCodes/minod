@@ -11,7 +11,7 @@ public:
 	CmdProcessor() = delete;
 	virtual ~CmdProcessor();
 
-	virtual Result apply(std::unique_ptr<Cmd> cmd) = 0;
+	virtual Result apply(const std::unique_ptr<Cmd>& cmd) = 0;
 };
 
 struct Cmd {

@@ -88,6 +88,18 @@ ServerError ServerImpl::listen() {
 		}
 
 		cmd->header = std::move(header);
+		if (recv_all(
+			clientfd.get(),
+			reinterpret_cast<char*>(cmd.get()) + sizeof(*cmd->header),
+			cmd->header->size - sizeof(cmd->header),
+			0) < 0) {
+			recv_errno = errno;
+			if (recv_errno == ECONNRESET) {
+				clientfd = -1;
+				continue;
+			}
+			return ServerError(recv_errno);
+		}
 
 		for (auto cmd_processor : cmd_processors) {
 			cmd_processor->apply(cmd);
