@@ -23,6 +23,7 @@ struct Cmd {
 		Type type;
 		int size;
 	};
+	std::unique_ptr<Header> header;
 	char buf[];
 };
 
@@ -30,7 +31,9 @@ struct Result {
 	enum Type {
 		SUCCESS,
 		FAILURE,
+		PANIC,
 	};
+	char buf[];
 };
 
 #endif

@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 
+#include <unistd.h>
+
 class ServerImpl;
 class ServerError;
 
@@ -34,6 +36,30 @@ public:
 	const std::string to_string() const noexcept;
 private:
 	int underlying_errno;
+};
+
+class SocketFile final {
+public:
+	explicit SocketFile(int fd): fd(fd) {}
+	~SocketFile() {
+		close(fd);
+	}
+	int operator=(int fd) {
+		// It may an invalid fd, but don't care.
+		close(this->fd);
+		this->fd = fd;
+	}
+	int operator>(int value) {
+		return fd > value;
+	}
+	int operator<(int value) {
+		return fd < value;
+	}
+	const int get() const {
+		return fd;
+	}
+private:
+	int fd;
 };
 
 #endif
