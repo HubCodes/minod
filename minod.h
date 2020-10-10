@@ -1,6 +1,8 @@
 #ifndef _MINOD_H
 #define _MINOD_H
 
+#include "rawmap.h"
+
 enum cmd_type {
     CMD_GET = 1,
     CMD_SET,
@@ -32,6 +34,7 @@ struct res_body {
 };
 
 typedef void (*cmd_processor)(
+    map* map,
     struct cmd_header* header,
     struct cmd_body* body,
     struct res_body* res,
