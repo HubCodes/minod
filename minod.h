@@ -11,8 +11,7 @@ struct cmd_header {
     int size;
 };
 
-struct cmd {
-    struct cmd_header header;
+struct cmd_body {
     int key_size, value_size;
     char buf[];
 };
@@ -24,14 +23,19 @@ enum res_code {
 };
 
 struct res_header {
-    enum res_code code;
-    int size, res_size;
+    int size;
 };
 
-struct res {
-    struct res_header header;
+struct res_body {
+    enum res_code code;
     char buf[];
 };
+
+typedef void (*cmd_processor)(
+    struct cmd_header* header,
+    struct cmd_body* body,
+    struct res_body* res,
+    int* res_size);
 
 #endif
 
