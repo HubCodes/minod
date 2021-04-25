@@ -6,6 +6,6 @@
 typedef struct processor processor;
 
 processor* processor_new(void);
-void handle(processor* self, struct cmd* cmd);
+void processor_handle(processor* self, struct cmd* cmd);
 
 #endif // MINOD_PROCESSOR_H
