@@ -1,37 +1,29 @@
 #ifndef _MINOD_H
 #define _MINOD_H
 
-enum cmd_type {
-    CMD_GET = 1,
-    CMD_SET,
-};
+#include <stdint.h>
 
-struct cmd_header {
-    enum cmd_type type;
-    int size;
-};
+#define CMD_GET 0x1
+#define CMD_SET 0x2
 
-struct cmd {
-    struct cmd_header header;
-    int key_size, value_size;
-    char buf[];
-};
+#define RES_FAILURE 0x1
+#define RES_SUCCESS 0x2
+#define RES_NOT_FOUND 0x3
 
-enum res_code {
-    RES_FAILURE = 1,
-    RES_SUCCESS,
-    RES_NOT_FOUND,
-};
+#pragma pack(push, 1)
+typedef struct cmd {
+    uint32_t size;
+    uint8_t type;  // CMD_GET or CMD_SET
+    uint32_t key_size, value_size;
+    uint8_t buf[];
+} cmd;
 
-struct res_header {
-    enum res_code code;
-    int size, res_size;
-};
-
-struct res {
-    struct res_header header;
-    char buf[];
-};
+typedef struct res {
+    uint32_t size;
+    uint8_t code;
+    uint8_t buf[];
+} res;
+#pragma pack(pop)
 
 #endif
 
