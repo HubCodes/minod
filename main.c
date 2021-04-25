@@ -1,5 +1,5 @@
 #include "minod.h"
-#include "rawmap.h"
+#include "hashmap.h"
 
 #include <errno.h>
 #include <string.h>

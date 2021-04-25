@@ -4,7 +4,7 @@
  *  Separate chaining with linked list
  */
 
-#include "rawmap.h"
+#include "hashmap.h"
 
 #include <stdlib.h>
 #include <string.h>

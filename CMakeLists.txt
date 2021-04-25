@@ -8,4 +8,4 @@ PKG_SEARCH_MODULE(LIBUV REQUIRED libuv)
 
 LINK_LIBRARIES(${LIBUV_LIBRARIES})
 
-ADD_EXECUTABLE(minod main.c hashmap.c minod.h rawmap.h)
+ADD_EXECUTABLE(minod main.c hashmap.c minod.h hashmap.h)
